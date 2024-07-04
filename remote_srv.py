@@ -9,9 +9,6 @@ import logs
 import settings
 
 
-logger = logs.setup_logger("remote_srv.log", logging.DEBUG)
-
-
 def init_server_socket(ip: str, port: int) -> socket.socket:
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind((ip, port))
@@ -66,13 +63,14 @@ def save_file(client_socket, filename):
             if not data:
                 break
             elif proc.poll() is not None:
+                logger.error("File saving was broken unexpectedly with error")
                 raise email_notifications.ProcessFuckedUpError(proc.stderr.read())
-            logger.error("File saving was broken unexpectedly with error")
             proc.stdin.write(data)
         logger.info(f"Saved {filename}")
 
 
 def get_stream(server_socket: socket.socket) -> None:
+    global last_time_sent
     logger.debug("Listening...")
     client_socket, client_address = server_socket.accept()
     logger.debug(f"Connection from {client_address}")
@@ -91,7 +89,9 @@ An error on remote server occured.
 
 If the problem isn't fixed, this message will be sent automatically every 30 minutes.
 """
-        email_notifications.send_email(last_time_sent, msg)
+        if datetime.datetime.now() - last_time_sent > settings.TIME_BETWEEN_NOTIFICATIONS:
+            logger.warning("Sending emails.")
+            last_time_sent = email_notifications.send_email(last_time_sent, msg)
     finally:
         client_socket.close()
         if not check_integrity(filename) and os.path.exists(filename):
@@ -113,6 +113,8 @@ def main() -> None:
 
 
 if __name__ == '__main__':
+    logger = logs.setup_logger("remote_srv.log", logging.DEBUG)
+
     if not os.path.exists(settings.VIDEO_FOLDER):
         os.makedirs(settings.VIDEO_FOLDER)
     cleanup_started = False

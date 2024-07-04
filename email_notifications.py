@@ -1,6 +1,7 @@
 import datetime
 import smtplib
 import logging
+import time
 
 import settings
 import logs
@@ -8,9 +9,6 @@ import logs
 
 class ProcessFuckedUpError(Exception):
     pass
-
-
-logger = logs.setup_logger("email.log", logging.DEBUG)
 
 
 def send_email(last_time_sent: datetime.datetime, msg: str) -> datetime.datetime:
@@ -30,3 +28,9 @@ def send_email(last_time_sent: datetime.datetime, msg: str) -> datetime.datetime
         except Exception as e:
             logger.critical(f"Couldn't send email. Exception {e}")
     return now
+
+
+# def send_email(*args, **kwargs):  # Debugging
+#     print("FUCK")
+#     time.sleep(2)
+#     return datetime.datetime.now()
