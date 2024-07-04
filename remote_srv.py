@@ -1,10 +1,15 @@
 import datetime
+import logging
 import os
 import socket
 import subprocess
 
 import email_notifications
+import logs
 import settings
+
+
+logger = logs.setup_logger("remote_srv.log", logging.DEBUG)
 
 
 def init_server_socket(ip: str, port: int) -> socket.socket:
@@ -21,6 +26,7 @@ def get_video_filename(client_addr: str) -> str:
 def cleanup_storage() -> None:
     global cleanup_started
     cleanup_started = True
+    logger.info("Storage cleanup started.")
 
     total_size = 0
     files = []
@@ -32,11 +38,14 @@ def cleanup_storage() -> None:
     files.sort(key=lambda x: os.path.getmtime(x))
 
     while total_size > settings.MAX_SIZE and files:
+        logger.warning(f"Too much space taken: {round(total_size / 1024 / 1024, 2)}MB")
         oldest_file = files.pop(0)
         total_size -= os.path.getsize(oldest_file)
         os.remove(oldest_file)
+        logger.warning(f"{oldest_file} removed.")
 
     cleanup_started = False
+    logger.info("Storage cleanup completed.")
 
 
 def check_integrity(path: str) -> bool:
@@ -46,7 +55,6 @@ def check_integrity(path: str) -> bool:
                              "-f", "null", "-"], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
     proc.wait()
     _, stderr = proc.communicate()
-
     return bool(stderr)
 
 
@@ -59,14 +67,15 @@ def save_file(client_socket, filename):
                 break
             elif proc.poll() is not None:
                 raise email_notifications.ProcessFuckedUpError(proc.stderr.read())
+            logger.error("File saving was broken unexpectedly with error")
             proc.stdin.write(data)
-        print(f"Saved {filename}")
+        logger.info(f"Saved {filename}")
 
 
 def get_stream(server_socket: socket.socket) -> None:
-    print("Listening...")
+    logger.debug("Listening...")
     client_socket, client_address = server_socket.accept()
-    print(f"Connection from {client_address}")
+    logger.debug(f"Connection from {client_address}")
 
     filename = os.path.join(settings.VIDEO_FOLDER, get_video_filename(client_address))
     try:
@@ -87,17 +96,18 @@ If the problem isn't fixed, this message will be sent automatically every 30 min
         client_socket.close()
         if not check_integrity(filename) and os.path.exists(filename):
             os.remove(filename)
-            print(f"{filename} is corrupted. Deleted.")
+            logger.warning(f"{filename} is corrupted. Deleted.")
     cleanup_storage()
 
 
 def main() -> None:
     server_socket = init_server_socket('127.0.0.1', 5665)
+    logger.info("Server started.")
     try:
         while True:
             get_stream(server_socket)
-    except KeyboardInterrupt:
-        print("Stopping server")
+    except KeyboardInterrupt as e:
+        logger.info(f"{e}. Stopping server.")
     finally:
         server_socket.close()
 

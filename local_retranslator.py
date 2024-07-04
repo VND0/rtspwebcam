@@ -1,12 +1,14 @@
 import datetime
 import subprocess
 import time
+import logging
 
 import email_notifications
 import settings
+import logs
 
 last_time_sent = datetime.datetime(2000, 1, 1)
-
+logger = logs.setup_logger("local_retranslator.log", logging.DEBUG)
 ffmpeg_cmd = [
     'ffmpeg',
     '-i', settings.RTSP_URL,
@@ -21,13 +23,16 @@ ffmpeg_cmd = [
 def start_stream() -> None:
     sender_process = subprocess.Popen(ffmpeg_cmd, stderr=subprocess.PIPE)
     started = datetime.datetime.now()
+    logger.info("Stream started")
     while datetime.datetime.now() - started < settings.MAX_DURATION:
         if sender_process.poll() is not None:
             time.sleep(0.1)
             _, stderr = sender_process.communicate()
+            logger.error("Streaming failed.")
             raise email_notifications.ProcessFuckedUpError(stderr.decode("utf-8"))
         time.sleep(0.1)
     sender_process.terminate()
+    logger.info("Stream stopped")
 
 
 if __name__ == '__main__':
