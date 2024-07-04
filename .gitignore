@@ -3,3 +3,4 @@ venv
 .venv
 personal_data.py
 /settings.py
+/received_videos
