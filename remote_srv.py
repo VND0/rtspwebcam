@@ -80,6 +80,30 @@ If the problem isn't fixed, this message will be sent automatically every 30 min
     last_time_sent = now
 
 
+def check_integrity(path: str) -> bool:
+    proc = subprocess.Popen(["ffmpeg",
+                             "-v", "error",
+                             "-i", path,
+                             "-f", "null", "-"], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    proc.wait()
+    _, stderr = proc.communicate()
+
+    return bool(stderr)
+
+
+def save_file(client_socket, filename):
+    with subprocess.Popen(['ffmpeg', '-i', 'pipe:0', '-c:v', 'copy', '-c:a', 'copy', filename],
+                          stdin=subprocess.PIPE) as proc:
+        while True:
+            data = client_socket.recv(BUFFER_SIZE)
+            if not data:
+                break
+            elif proc.poll() is not None:
+                raise email_part.ProcessFuckedUpError(proc.stderr.read())
+            proc.stdin.write(data)
+        print(f"Saved {filename}")
+
+
 def get_stream(server_socket: socket.socket) -> None:
     print("Listening...")
     client_socket, client_address = server_socket.accept()
@@ -87,21 +111,14 @@ def get_stream(server_socket: socket.socket) -> None:
 
     filename = os.path.join(VIDEO_FOLDER, get_video_filename(client_address))
     try:
-        with subprocess.Popen(['ffmpeg', '-i', 'pipe:0', '-c:v', 'copy', '-c:a', 'copy', filename],
-                              stdin=subprocess.PIPE) as proc:
-            while True:
-                data = client_socket.recv(BUFFER_SIZE)
-                if not data:
-                    break
-                elif proc.poll() is not None:
-                    raise email_part.ProcessFuckedUpError(proc.stderr.read())
-                proc.stdin.write(data)
-
-            print(f"Saved {filename}")
+        save_file(client_socket, filename)
     except email_part.ProcessFuckedUpError as e:
         make_notification(e)
     finally:
         client_socket.close()
+        if not check_integrity(filename) and os.path.exists(filename):
+            os.remove(filename)
+            print(f"{filename} is corrupted. Deleted.")
     cleanup_storage()
 
 
