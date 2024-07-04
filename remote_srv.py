@@ -57,7 +57,7 @@ def check_integrity(path: str) -> bool:
 
 def save_file(client_socket, filename):
     with subprocess.Popen(['ffmpeg', '-i', 'pipe:0', '-c:v', 'copy', '-c:a', 'copy', filename],
-                          stdin=subprocess.PIPE) as proc:
+                          stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as proc:
         while True:
             data = client_socket.recv(settings.BUFFER_SIZE)
             if not data:
