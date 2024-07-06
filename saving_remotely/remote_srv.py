@@ -66,7 +66,10 @@ def save_file(client_socket, filename):
                 logger.error("File saving was broken unexpectedly with error")
                 raise email_notifications.ProcessFuckedUpError(proc.stderr.read())
             proc.stdin.write(data)
-        logger.info(f"Saved {filename}")
+        if os.path.exists(filename):
+            logger.info(f"Saved {filename}")
+        else:
+            logger.error(f"Somehow file wasn't save. Most probably, the request contained no data.")
 
 
 def get_stream(server_socket: socket.socket) -> None:
