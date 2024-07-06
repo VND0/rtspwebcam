@@ -2,5 +2,5 @@
 venv
 .venv
 personal_data.py
-/saving_remotely/settings.py
-/saving_remotely/received_videos
+settings.py
+received_videos
