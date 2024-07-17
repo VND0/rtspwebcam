@@ -11,6 +11,7 @@ import datetime
 
 # Videos will be saved there on both remote and local servers.
 VIDEO_FOLDER: str = ...
+VIDEOS_EXTENSION: str = ...  # With dot, f.e. '.mp4'
 
 # Remote server settings
 
