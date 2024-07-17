@@ -45,7 +45,7 @@ def cleanup_storage() -> None:
 
 
 def get_video_path_and_name() -> str:
-    return f"{settings.VIDEO_FOLDER}/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.mkv"
+    return f"{settings.VIDEO_FOLDER}/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}{settings.VIDEOS_EXTENSION}"
 
 
 def get_ffmpeg_proc(filename: str) -> subprocess.Popen:
